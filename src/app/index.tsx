@@ -1,6 +1,9 @@
 import { Redirect } from 'expo-router';
 
-// TODO(backend): redirecionar para /home quando já houver sessão ativa no Supabase.
+import { useAuth } from '@/data/AuthContext';
+
+/** Entrada do app: com sessão salva vai direto para a Home, sem sessão para o login. */
 export default function Index() {
-  return <Redirect href="/login" />;
+  const { logado } = useAuth();
+  return <Redirect href={logado ? '/home' : '/login'} />;
 }

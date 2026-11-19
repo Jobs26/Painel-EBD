@@ -7,14 +7,20 @@ import { Button, Icon, Snackbar, Text } from 'react-native-paper';
 
 import { Avatar } from '@/components/Avatar';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useAuth } from '@/data/AuthContext';
 import { useEscola } from '@/data/EscolaContext';
+import type { Usuario } from '@/data/mock';
 import { colors, fonts } from '@/theme';
 import { calcularIdade, parseDate } from '@/utils/masks';
+
+const SEM_DADOS: Usuario = { nome: '', email: '', telefone: '', nascimento: '' };
 
 /** Perfil do usuário logado: dados cadastrais, segurança (senha) e sair. */
 export default function PerfilScreen() {
   const insets = useSafeAreaInsets();
-  const { usuario, aviso, limparAviso } = useEscola();
+  const { aviso, limparAviso } = useEscola();
+  const { usuario: perfil, sair } = useAuth();
+  const usuario = perfil ?? SEM_DADOS;
   const [confirmarSaida, setConfirmarSaida] = useState(false);
 
   const nascimento = parseDate(usuario.nascimento);
@@ -126,8 +132,8 @@ export default function PerfilScreen() {
         onDismiss={() => setConfirmarSaida(false)}
         onConfirm={() => {
           setConfirmarSaida(false);
-          // TODO(backend): supabase.auth.signOut()
-          router.replace('/login');
+          // Sem sessão, o layout raiz leva para o login.
+          sair();
         }}
       />
 

@@ -8,8 +8,10 @@ import { AuthScreen } from '@/components/AuthScreen';
 import { FooterLink } from '@/components/FooterLink';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { erroDoCadastro, SENHA_MINIMO } from '@/data/auth';
+import { useAuth } from '@/data/AuthContext';
 import { colors, fonts } from '@/theme';
-import { maskDate } from '@/utils/masks';
+import { maskDate, maskPhone } from '@/utils/masks';
 
 type CadastroForm = {
   nome: string;
@@ -29,23 +31,39 @@ const initialForm: CadastroForm = {
   confirmarSenha: '',
 };
 
-/** Aplica a máscara DD / MM / AAAA enquanto o usuário digita. */
+/**
+ * Criar conta (Supabase Auth). Depois do cadastro, abre a confirmação do código
+ * enviado ao e-mail. Regras em `src/data/auth.ts`.
+ */
 export default function CadastroScreen() {
+  const { cadastrar } = useAuth();
   const [form, setForm] = useState(initialForm);
   const [submitted, setSubmitted] = useState(false);
+  const [erroServidor, setErroServidor] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
-  const set = (field: keyof CadastroForm) => (value: string) =>
+  const set = (field: keyof CadastroForm) => (value: string) => {
+    setErroServidor(null);
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
 
-  const senhasDiferentes =
-    form.confirmarSenha.length > 0 && form.senha !== form.confirmarSenha;
-  const camposVazios = Object.values(form).some((v) => v.trim() === '');
+  const { confirmarSenha, ...dados } = form;
+  const erroValidacao = erroDoCadastro(dados, confirmarSenha);
+  const senhasDiferentes = confirmarSenha.length > 0 && form.senha !== confirmarSenha;
+  const erro = erroServidor ?? (submitted ? erroValidacao : senhasDiferentes ? 'As senhas não coincidem.' : null);
 
-  const handleCadastro = () => {
+  const handleCadastro = async () => {
+    if (enviando) return;
     setSubmitted(true);
-    if (camposVazios || senhasDiferentes) return;
-    // TODO(backend): criar o usuário no Supabase.
-    router.replace('/home');
+    if (erroValidacao) return;
+    setEnviando(true);
+    const resultado = await cadastrar(dados);
+    setEnviando(false);
+    if (!resultado.ok) {
+      setErroServidor(resultado.erro);
+      return;
+    }
+    router.replace({ pathname: '/confirmar-email', params: { email: dados.email.trim().toLowerCase() } });
   };
 
   const fieldProps = {
@@ -85,9 +103,9 @@ export default function CadastroScreen() {
         <FormField
           {...fieldProps}
           label="Número de telefone"
-          placeholder="+ 123 456 789"
+          placeholder="(11) 91234-5678"
           value={form.telefone}
-          onChangeText={set('telefone')}
+          onChangeText={(v) => set('telefone')(maskPhone(v))}
           keyboardType="phone-pad"
           autoComplete="tel"
         />
@@ -121,15 +139,15 @@ export default function CadastroScreen() {
         />
       </View>
 
-      {senhasDiferentes ? (
-        <HelperText type="error" visible>
-          As senhas não coincidem.
+      {erro ? (
+        <HelperText type="error" visible accessibilityLiveRegion="polite">
+          {erro}
         </HelperText>
-      ) : submitted && camposVazios ? (
-        <HelperText type="error" visible>
-          Preencha todos os campos.
+      ) : (
+        <HelperText type="info" visible style={styles.dica}>
+          A senha precisa ter pelo menos {SENHA_MINIMO} caracteres, com letras e números.
         </HelperText>
-      ) : null}
+      )}
 
       <Text style={styles.terms}>
         Ao continuar, você concorda com{'\n'}
@@ -137,10 +155,12 @@ export default function CadastroScreen() {
       </Text>
 
       <PrimaryButton
-        title="Cadastre-se"
+        title={enviando ? 'Enviando…' : 'Cadastre-se'}
         width={207}
         height={45}
         onPress={handleCadastro}
+        loading={enviando}
+        disabled={enviando}
         labelStyle={styles.buttonLabel}
         style={styles.button}
       />
@@ -173,6 +193,9 @@ const styles = StyleSheet.create({
   },
   inputText: {
     fontFamily: fonts.poppinsMedium,
+  },
+  dica: {
+    color: colors.subtext,
   },
   terms: {
     marginTop: 25,

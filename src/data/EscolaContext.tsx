@@ -6,11 +6,9 @@ import {
   gastosMock,
   relatorioMock,
   turmasMock,
-  usuarioMock,
   type Aluno,
   type FaixaEtaria,
   type Turma,
-  type Usuario,
 } from '@/data/mock';
 import { type DadosGasto, type Gasto } from '@/data/gastos';
 import {
@@ -33,10 +31,8 @@ export type DadosAluno = Pick<Aluno, 'nome' | 'idade' | 'telefone' | 'nascimento
 export type AreaAviso = 'turmas' | 'alunos' | 'relatorios' | 'perfil';
 
 type EscolaContextValue = {
-  /** Usuário logado. */
-  usuario: Usuario;
-  atualizarUsuario: (dados: Usuario) => void;
-  /** Confere a senha atual (no backend: Supabase Auth). */
+  // O usuário logado e os dados cadastrais vêm do `useAuth()` (Supabase).
+  /** DEMONSTRAÇÃO (Perfil → Alterar senha): confere a senha atual. TODO(backend): Supabase Auth. */
   senhaConfere: (senha: string) => boolean;
   /** Troca a senha. Chamar só depois do código do e-mail confirmado (ver `src/data/senha.ts`). */
   alterarSenha: (novaSenha: string) => void;
@@ -99,11 +95,9 @@ export function EscolaProvider({ children }: { children: ReactNode }) {
   const [retroativosLiberados, setRetroativosLiberados] = useState<string[]>([]);
   const [gastos, setGastos] = useState<Gasto[]>(() => gastosMock());
   const [aviso, setAviso] = useState<EscolaContextValue['aviso']>(null);
-  const [usuario, setUsuario] = useState<Usuario>(usuarioMock);
   const [senha, setSenha] = useState(SENHA_MOCK);
 
-  // ---------------------------------------------------------------- usuário
-  const atualizarUsuario = useCallback((dados: Usuario) => setUsuario(dados), []);
+  // ---------------------------------------------------------------- senha (demonstração)
   const senhaConfere = useCallback((tentativa: string) => tentativa === senha, [senha]);
   const alterarSenha = useCallback((novaSenha: string) => setSenha(novaSenha), []);
 
@@ -231,8 +225,6 @@ export function EscolaProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<EscolaContextValue>(
     () => ({
-      usuario,
-      atualizarUsuario,
       senhaConfere,
       alterarSenha,
       turmas,
@@ -260,8 +252,6 @@ export function EscolaProvider({ children }: { children: ReactNode }) {
       limparAviso,
     }),
     [
-      usuario,
-      atualizarUsuario,
       senhaConfere,
       alterarSenha,
       turmas,

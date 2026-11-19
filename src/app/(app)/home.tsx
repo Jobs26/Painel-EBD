@@ -18,6 +18,7 @@ import {
   type FaixaEtaria,
   type Periodo,
 } from '@/data/mock';
+import { useAuth } from '@/data/AuthContext';
 import { useEscola } from '@/data/EscolaContext';
 import { gastosDoIntervalo, totalGastos } from '@/data/gastos';
 import {
@@ -33,7 +34,9 @@ const labelPeriodo = (p: Periodo) => PERIODOS.find((o) => o.value === p)?.label 
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { usuario, turmas, aulas, fechamentos, gastos } = useEscola();
+  const { usuario } = useAuth();
+  const { turmas, aulas, fechamentos, gastos } = useEscola();
+  const primeiroNome = usuario?.nome.split(' ')[0] ?? '';
 
   // Os dois filtros são independentes e começam no trimestre atual.
   const [periodoBalanco, setPeriodoBalanco] = useState<Periodo>(PERIODO_PADRAO);
@@ -67,7 +70,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 14 }]}>
-        <Text style={styles.greeting}>Olá, Bem-vindo {usuario.nome.split(' ')[0]}</Text>
+        <Text style={styles.greeting}>Olá, Bem-vindo {primeiroNome}</Text>
         <Text style={styles.periodo}>
           {labelPeriodo(periodoBalanco)} · {descricaoDoPeriodo(periodoBalanco, intervaloBalanco)}
         </Text>

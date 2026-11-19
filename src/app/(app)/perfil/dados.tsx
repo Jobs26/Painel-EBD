@@ -4,34 +4,51 @@ import { HelperText } from 'react-native-paper';
 import { FormField } from '@/components/FormField';
 import { FormScreen, FormStep, formFieldStyles, sairDoFormulario } from '@/components/FormScreen';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { nomeValido, telefoneValido } from '@/data/auth';
+import { useAuth } from '@/data/AuthContext';
 import { useEscola } from '@/data/EscolaContext';
 import type { Usuario } from '@/data/mock';
 import { maskDate, maskPhone, parseDate } from '@/utils/masks';
 
-const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SEM_DADOS: Usuario = { nome: '', email: '', telefone: '', nascimento: '' };
 
-/** Edição dos dados cadastrais do usuário logado: nome, e-mail, nascimento e telefone. */
+/**
+ * Edição dos dados cadastrais do usuário logado (tabela `usuarios` no Supabase):
+ * nome, nascimento e telefone. O e-mail é o login da conta e fica só para consulta.
+ */
 export default function DadosCadastraisScreen() {
-  const { usuario, atualizarUsuario, avisar } = useEscola();
+  const { usuario: perfil, atualizarUsuario } = useAuth();
+  const { avisar } = useEscola();
+  const usuario = perfil ?? SEM_DADOS;
 
   const [form, setForm] = useState<Usuario>(usuario);
   const [tentouSalvar, setTentouSalvar] = useState(false);
-  const set = (campo: keyof Usuario) => (valor: string) => setForm((f) => ({ ...f, [campo]: valor }));
+  const [salvando, setSalvando] = useState(false);
+  const [erroServidor, setErroServidor] = useState<string | null>(null);
+  const set = (campo: keyof Usuario) => (valor: string) => {
+    setErroServidor(null);
+    setForm((f) => ({ ...f, [campo]: valor }));
+  };
 
-  const nomeOk = form.nome.trim().length > 0;
-  const emailOk = EMAIL_VALIDO.test(form.email.trim());
+  const nomeOk = nomeValido(form.nome);
   const digitosNascimento = form.nascimento.replace(/\D/g, '').length;
   const nascimentoOk = !!parseDate(form.nascimento);
   const digitosTelefone = form.telefone.replace(/\D/g, '').length;
-  const telefoneOk = digitosTelefone >= 10;
+  const telefoneOk = telefoneValido(form.telefone);
 
-  const alterado = (Object.keys(form) as (keyof Usuario)[]).some((k) => form[k] !== usuario[k]);
+  const alterado = (['nome', 'telefone', 'nascimento'] as const).some((k) => form[k] !== usuario[k]);
 
-  const salvar = () => {
+  const salvar = async () => {
+    if (salvando) return;
     setTentouSalvar(true);
-    if (!nomeOk || !emailOk || !nascimentoOk || !telefoneOk) return;
-    // TODO(backend): atualizar o perfil no Supabase (troca de e-mail pede confirmação no novo endereço).
-    atualizarUsuario({ ...form, nome: form.nome.trim(), email: form.email.trim().toLowerCase() });
+    if (!nomeOk || !nascimentoOk || !telefoneOk) return;
+    setSalvando(true);
+    const resultado = await atualizarUsuario({ nome: form.nome, telefone: form.telefone, nascimento: form.nascimento });
+    setSalvando(false);
+    if (!resultado.ok) {
+      setErroServidor(resultado.erro);
+      return;
+    }
     avisar('perfil', 'Dados cadastrais atualizados.');
     sairDoFormulario('/perfil');
   };
@@ -49,14 +66,15 @@ export default function DadosCadastraisScreen() {
       title="Dados cadastrais"
       subtitle="Informações da sua conta"
       fallbackHref="/perfil"
-      dirty={alterado}
+      dirty={alterado && !salvando}
       footer={
         <PrimaryButton
-          title="Salvar alterações"
+          title={salvando ? 'Salvando…' : 'Salvar alterações'}
           width={240}
           height={48}
           onPress={salvar}
-          disabled={!alterado}
+          loading={salvando}
+          disabled={!alterado || salvando}
           labelStyle={formFieldStyles.saveLabel}
         />
       }
@@ -75,7 +93,7 @@ export default function DadosCadastraisScreen() {
         />
         {tentouSalvar && !nomeOk ? (
           <HelperText type="error" visible style={formFieldStyles.helper}>
-            Informe o nome.
+            Informe o nome completo.
           </HelperText>
         ) : null}
         <FormField
@@ -94,23 +112,18 @@ export default function DadosCadastraisScreen() {
         ) : null}
       </FormStep>
 
-      <FormStep numero={2} titulo="Contato" concluida={emailOk && telefoneOk}>
+      <FormStep numero={2} titulo="Contato" concluida={telefoneOk}>
         <FormField
           {...campo}
           label="E-mail"
           value={form.email}
-          onChangeText={set('email')}
-          placeholder="example@example.com"
+          editable={false}
           keyboardType="email-address"
           autoCapitalize="none"
-          autoComplete="email"
-          error={tentouSalvar && !emailOk}
         />
-        {tentouSalvar && !emailOk ? (
-          <HelperText type="error" visible style={formFieldStyles.helper}>
-            E-mail inválido.
-          </HelperText>
-        ) : null}
+        <HelperText type="info" visible style={formFieldStyles.helper}>
+          O e-mail é o login da conta e não pode ser alterado por aqui.
+        </HelperText>
         <FormField
           {...campo}
           label="Telefone"
@@ -124,6 +137,11 @@ export default function DadosCadastraisScreen() {
         {tentouSalvar && !telefoneOk ? (
           <HelperText type="error" visible style={formFieldStyles.helper}>
             {digitosTelefone === 0 ? 'Informe o telefone.' : 'Telefone incompleto.'}
+          </HelperText>
+        ) : null}
+        {erroServidor ? (
+          <HelperText type="error" visible style={formFieldStyles.helper}>
+            {erroServidor}
           </HelperText>
         ) : null}
       </FormStep>

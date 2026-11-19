@@ -36,7 +36,7 @@ export const PERIODOS: { value: Periodo; label: string }[] = [
 ];
 
 
-/** Usuário logado (dados cadastrais exibidos no Perfil). */
+/** Usuário logado (dados cadastrais exibidos no Perfil). Vem da tabela `usuarios` (useAuth). */
 export type Usuario = {
   nome: string;
   email: string;
@@ -46,14 +46,7 @@ export type Usuario = {
   nascimento: string;
 };
 
-export const usuarioMock: Usuario = {
-  nome: 'Administrador EBD',
-  email: 'admin@painelebd.com',
-  telefone: '(11) 91234-5678',
-  nascimento: '15 / 03 / 1985',
-};
-
-/** Senha fictícia do usuário de teste (só front-end; no backend a senha nunca fica no app). */
+/** Senha fictícia da DEMONSTRAÇÃO de "Alterar senha" no Perfil (ainda não ligada ao Supabase). */
 export const SENHA_MOCK = 'ebd12345';
 
 // ---------------------------------------------------------------------------

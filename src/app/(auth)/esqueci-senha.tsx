@@ -1,21 +1,41 @@
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { Snackbar, Text } from 'react-native-paper';
+import { HelperText, Text } from 'react-native-paper';
 
 import { AuthScreen } from '@/components/AuthScreen';
 import { FooterLink } from '@/components/FooterLink';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { emailValido, normalizarEmail } from '@/data/auth';
+import { useAuth } from '@/data/AuthContext';
 import { colors, fonts } from '@/theme';
 
+/**
+ * Recuperação de senha, etapa 1: pede o código ao Supabase e segue para a tela de
+ * redefinição. A resposta é sempre a mesma, com ou sem conta (evita enumeração).
+ */
 export default function EsqueciSenhaScreen() {
+  const { pedirRecuperacao } = useAuth();
   const [email, setEmail] = useState('');
-  const [enviado, setEnviado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
-  // TODO(backend): disparar o e-mail de recuperação pelo Supabase Auth.
-  const handleContinuar = () => {
-    if (email.trim()) setEnviado(true);
+  const handleContinuar = async () => {
+    if (enviando) return;
+    if (!emailValido(email)) {
+      setErro('Informe um e-mail válido.');
+      return;
+    }
+    setErro(null);
+    setEnviando(true);
+    const resultado = await pedirRecuperacao(email);
+    setEnviando(false);
+    if (!resultado.ok) {
+      setErro(resultado.erro);
+      return;
+    }
+    router.push({ pathname: '/redefinir-senha', params: { email: normalizarEmail(email) } });
   };
 
   return (
@@ -27,7 +47,11 @@ export default function EsqueciSenhaScreen() {
           label="Endereço de Email cadastrado"
           placeholder="example@example.com"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => {
+            setEmail(v);
+            setErro(null);
+          }}
+          onSubmitEditing={handleContinuar}
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
@@ -39,12 +63,19 @@ export default function EsqueciSenhaScreen() {
           inputTextStyle={styles.inputText}
           containerStyle={styles.field}
         />
+        {erro ? (
+          <HelperText type="error" visible style={styles.erro} accessibilityLiveRegion="polite">
+            {erro}
+          </HelperText>
+        ) : null}
 
         <PrimaryButton
-          title="Continuar"
+          title={enviando ? 'Enviando…' : 'Continuar'}
           width={169}
           height={32}
           onPress={handleContinuar}
+          loading={enviando}
+          disabled={enviando}
           labelStyle={styles.buttonLabel}
           style={styles.button}
         />
@@ -56,10 +87,6 @@ export default function EsqueciSenhaScreen() {
           style={styles.footer}
         />
       </AuthScreen>
-
-      <Snackbar visible={enviado} onDismiss={() => setEnviado(false)} duration={4000}>
-        Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.
-      </Snackbar>
     </>
   );
 }
@@ -81,6 +108,9 @@ const styles = StyleSheet.create({
   },
   inputText: {
     fontFamily: fonts.interRegular,
+  },
+  erro: {
+    textAlign: 'center',
   },
   button: {
     marginTop: 28,

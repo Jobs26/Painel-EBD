@@ -6,6 +6,7 @@ import EyePassIcon from '@assets/icons/eye-pass.svg';
 import { FormField } from '@/components/FormField';
 import { FormScreen, FormStep, formFieldStyles, sairDoFormulario } from '@/components/FormScreen';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { useAuth } from '@/data/AuthContext';
 import { useEscola } from '@/data/EscolaContext';
 import {
   CODIGO_DIGITOS,
@@ -26,8 +27,9 @@ type Envio = { codigo: string; enviadoEm: number; tentativas: number };
  * 1) enviar código ao e-mail, 2) digitar o código, 3) senha atual + nova senha.
  */
 export default function AlterarSenhaScreen() {
-  const { usuario, senhaConfere, alterarSenha, avisar } = useEscola();
-  const emailMascarado = mascararEmail(usuario.email);
+  const { usuario } = useAuth();
+  const { senhaConfere, alterarSenha, avisar } = useEscola();
+  const emailMascarado = mascararEmail(usuario?.email ?? '');
 
   const [envio, setEnvio] = useState<Envio | null>(null);
   const [espera, setEspera] = useState(0);
